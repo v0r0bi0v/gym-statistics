@@ -125,4 +125,4 @@ def update_graph(selected_user, selected_muscle, selected_exercise):
     return fig
 
 if __name__ == '__main__':
-    app.run(debug=True, host='127.0.0.1', port=8055)
+    app.run(debug=True, host='0.0.0.0', port=8080)
