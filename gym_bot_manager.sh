@@ -39,6 +39,7 @@ start_autocommit() {
 while true; do
     # Получаем текущую дату и время с часовым поясом
     datetime=$(date '+%Y-%m-%d %H:%M:%S %Z')
+    git pull
     # Добавляем все изменения
     git add -A
     # Создаем коммит
