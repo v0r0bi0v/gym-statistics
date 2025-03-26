@@ -45,8 +45,8 @@ while true; do
     git commit -m "AUTOCOMMIT $datetime" --allow-empty
     # Пушим изменения
     git push
-    # Ждем 5 минут
-    sleep 300
+    # Ждем час
+    sleep 3600
 done
 EOL
         # Делаем скрипт исполняемым
