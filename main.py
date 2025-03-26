@@ -1,6 +1,7 @@
 import logging
 import pandas as pd
 import json
+from copy import deepcopy
 from pathlib import Path
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
@@ -65,7 +66,7 @@ GET_NAME, SELECT_MUSCLE, INPUT_CUSTOM_MUSCLE, SELECT_EXERCISE, INPUT_CUSTOM_EXER
 
 # Группы мышц и упражнения
 MUSCLE_GROUPS = ["Грудь", "Спина", "Трицепс", "Плечи", "Бицепс", "Ноги", "Икры", "Другое"]
-EXERCISES = {
+DEFAULT_EXERCISES = {
     "Грудь": ["Жим лежа", "Жим в хаммере", "Брусья"],
     "Спина": ["Тяга вертикального блока", "Тяга вертикального блока за голову", "Становая тяга"],
     "Трицепс": ["Брусья", "Разгибания руки за голову"],
@@ -75,9 +76,12 @@ EXERCISES = {
     "Икры": ["Тренажер сидя"],
     "Другое": []
 }
+EXERCISES = {}
+
 
 def update_exercises():
     global EXERCISES, MUSCLE_GROUPS
+    EXERCISES = deepcopy(DEFAULT_EXERCISES)
 
     del MUSCLE_GROUPS[-1]
 
