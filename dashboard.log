@@ -1,6 +1,0 @@
-Dash is running on http://0.0.0.0:8080/
-
- * Serving Flask app 'dashboard'
- * Debug mode: on
-91.196.152.38 - - [26/Mar/2025 16:41:18] code 400, message Bad request version ('À#À¬À®À+À')
-91.196.152.36 - - [26/Mar/2025 16:48:11] code 400, message Bad request version ('À#À¬À®À+À')
