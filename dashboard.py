@@ -23,8 +23,7 @@ def load_data():
     return df
 
 # Инициализация приложения Dash
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.DARKLY])
-
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server
 
 # Создание layout дэшборда
