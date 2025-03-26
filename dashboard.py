@@ -5,6 +5,9 @@ import pandas as pd
 import dash_bootstrap_components as dbc
 from datetime import datetime
 import os
+import pytz
+
+timezone = pytz.timezone('Europe/Moscow')
 
 # Функция для загрузки данных с проверкой времени изменения файла
 def load_data():
@@ -15,7 +18,7 @@ def load_data():
         last_modified_time = current_modified_time
         df = pd.read_csv("workouts.csv")
         df['date'] = pd.to_datetime(df['date'])
-        print(f"Данные обновлены в {datetime.now().strftime('%H:%M:%S')}")
+        print(f"Данные обновлены в {datetime.now(timezone).strftime('%H:%M:%S')}")
     
     return df
 
@@ -89,7 +92,7 @@ def update_data(n_clicks, n_intervals):
     df = load_data()
     user_options = [{'label': user, 'value': user} for user in df['user_id'].unique()]
     default_user = user_options[0]['value'] if user_options else None
-    last_update = f"Последнее обновление: {datetime.now().strftime('%H:%M:%S')}"
+    last_update = f"Последнее обновление: {datetime.now(timezone).strftime('%H:%M:%S')}"
     return user_options, default_user, last_update
 
 # Остальные callback'и остаются без изменений

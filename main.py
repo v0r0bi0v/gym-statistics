@@ -11,6 +11,9 @@ from telegram.ext import (
     ConversationHandler,
     ContextTypes
 )
+import pytz
+
+timezone = pytz.timezone('Europe/Moscow')
 
 # Настройка логирования
 logging.basicConfig(
@@ -234,7 +237,7 @@ async def input_reps(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         global df
         new_row = {
             "user_id": user_names[str(update.message.from_user.id)],
-            "date": pd.Timestamp.now().strftime("%Y-%m-%d"),
+            "date": pd.Timestamp.now(timezone).strftime("%Y-%m-%d"),
             "muscle_group": user_data["muscle_group"],
             "exercise": user_data["exercise"],
             "weight": user_data["weight"],
