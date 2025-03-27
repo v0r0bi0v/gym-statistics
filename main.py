@@ -255,6 +255,7 @@ async def input_reps(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             f"Тренировка сохранена, {user_names.get(str(update.message.from_user.id), 'друг')}! "
             "Нажмите /start для новой записи."
             "\nНажмите /delete_last для удаления последнего подхода"
+            "\nГрафики с прогрессом вы можете посмотреть на http://193.108.54.176:8080/"
         )
         return ConversationHandler.END
     except ValueError:
