@@ -64,64 +64,65 @@ user_names = load_user_names()
 # Состояния диалога
 GET_NAME, SELECT_MUSCLE, INPUT_CUSTOM_MUSCLE, SELECT_EXERCISE, INPUT_CUSTOM_EXERCISE, INPUT_WEIGHT, INPUT_REPS = range(7)
 
-# Группы мышц и упражнения
-MUSCLE_GROUPS = ["Грудь", "Спина", "Трицепс", "Плечи", "Бицепс", "Ноги", "Икры", "Другое"]
+# Группы мышц и упражнения по умолчанию
+DEFAULT_MUSCLE_GROUPS = ["Грудь", "Спина", "Трицепс", "Плечи", "Бицепс", "Ноги", "Икры", "Другое"]
 DEFAULT_EXERCISES = {
     "Грудь": ["Жим лежа", "Жим в хаммере", "Брусья"],
     "Спина": ["Тяга вертикального блока", "Тяга вертикального блока за голову", "Становая тяга"],
     "Трицепс": ["Брусья", "Разгибания руки за голову"],
     "Плечи": ["Разведения гантелей", "Подъем гантелей перед собой"],
-    "Бицепс": ["Подъем штанги", "Молотки",],
+    "Бицепс": ["Подъем штанги", "Молотки"],
     "Ноги": ["Присед", "Присед в тренажере", "Разгибания", "Сгибания"],
     "Икры": ["Тренажер сидя"],
     "Другое": []
 }
-EXERCISES = {}
 
+def get_user_muscle_groups(user_name):
+    """Получает список групп мышц для конкретного пользователя"""
+    user_workouts = df[df["user_id"] == user_name]
+    if not user_workouts.empty:
+        muscle_groups = user_workouts["muscle_group"].unique().tolist()
+        # Добавляем группы по умолчанию, если их еще нет
+        for group in DEFAULT_MUSCLE_GROUPS:
+            if group not in muscle_groups:
+                muscle_groups.append(group)
+        return muscle_groups
+    return DEFAULT_MUSCLE_GROUPS
 
-def update_exercises():
-    global EXERCISES, MUSCLE_GROUPS
-    EXERCISES = deepcopy(DEFAULT_EXERCISES)
-
-    del MUSCLE_GROUPS[-1]
-
-
-    for key in df["muscle_group"].unique():
-        if key not in MUSCLE_GROUPS:
-            MUSCLE_GROUPS.append(key)
-        exercises_to_add = df[df["muscle_group"] == key]["exercise"].to_list()
-        if key in EXERCISES:
-            for e in exercises_to_add:
-                if e not in EXERCISES[key]:
-                    EXERCISES[key].append(e)
-        else:
-            EXERCISES[key] = exercises_to_add
-        try:
-            ind_other = EXERCISES[key].index("Другое")
-            del EXERCISES[key][ind_other]
-        except ValueError:
-            pass
-
-    for key in EXERCISES.keys():
-        EXERCISES[key].append("Другое")
+def get_user_exercises(user_name, muscle_group):
+    """Получает список упражнений для конкретного пользователя и группы мышц"""
+    user_workouts = df[df["user_id"] == user_name]
+    exercises = []
     
-    MUSCLE_GROUPS.append("Другое")
-
-    EXERCISES["Другое"] = []
-
-update_exercises()
-
+    # Добавляем упражнения по умолчанию для этой группы мышц
+    if muscle_group in DEFAULT_EXERCISES:
+        exercises.extend(DEFAULT_EXERCISES[muscle_group])
+    
+    # Добавляем упражнения, которые пользователь уже делал для этой группы
+    if not user_workouts.empty:
+        user_exercises = user_workouts[user_workouts["muscle_group"] == muscle_group]["exercise"].unique().tolist()
+        for ex in user_exercises:
+            if ex not in exercises:
+                exercises.append(ex)
+    
+    # Всегда добавляем "Другое" в конце
+    if "Другое" not in exercises:
+        exercises.append("Другое")
+    
+    return exercises
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Начало диалога, проверка имени пользователя."""
-    user_id = str(update.message.from_user.id)  # Приводим к строке для JSON
+    user_id = str(update.message.from_user.id)
     
     # Если имя уже есть, пропускаем этап представления
     if user_id in user_names:
-        reply_keyboard = [MUSCLE_GROUPS[i:i+2] for i in range(0, len(MUSCLE_GROUPS), 2)]
+        user_name = user_names[user_id]
+        muscle_groups = get_user_muscle_groups(user_name)
+        reply_keyboard = [muscle_groups[i:i+2] for i in range(0, len(muscle_groups), 2)]
         
         await update.message.reply_text(
-            f"Привет, {user_names[user_id]}! Выберите группу мышц:",
+            f"Привет, {user_name}! Выберите группу мышц:",
             reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
         )
         return SELECT_MUSCLE
@@ -134,7 +135,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Обработка ввода имени пользователя."""
-    user_id = str(update.message.from_user.id)  # Приводим к строке для JSON
+    user_id = str(update.message.from_user.id)
     name = update.message.text.strip()
     
     # Проверяем, есть ли уже такое имя у другого пользователя
@@ -147,9 +148,10 @@ async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     
     # Сохраняем имя пользователя
     user_names[user_id] = name
-    save_user_names()  # Сохраняем в файл
+    save_user_names()
     
-    reply_keyboard = [MUSCLE_GROUPS[i:i+2] for i in range(0, len(MUSCLE_GROUPS), 2)]
+    muscle_groups = get_user_muscle_groups(name)
+    reply_keyboard = [muscle_groups[i:i+2] for i in range(0, len(muscle_groups), 2)]
     
     await update.message.reply_text(
         f"Приятно познакомиться, {name}! Выберите группу мышц:",
@@ -169,9 +171,8 @@ async def select_muscle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         )
         return INPUT_CUSTOM_MUSCLE
     
-    exercises = EXERCISES.get(muscle_group, [])
-    # if 'Другое' not in exercises:
-    #     exercises.append("Другое")  # Добавляем кнопку "Другое"
+    user_name = user_names[str(update.message.from_user.id)]
+    exercises = get_user_exercises(user_name, muscle_group)
     reply_keyboard = [exercises[i:i+2] for i in range(0, len(exercises), 2)]
     
     await update.message.reply_text(
@@ -248,7 +249,6 @@ async def input_reps(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             "reps": reps
         }
         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-        update_exercises()
         df.to_csv("workouts.csv", index=False)
         
         await update.message.reply_text(
@@ -273,7 +273,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def delete_last(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Удаляет последнюю запись пользователя."""
-    global df  # Объявляем global в начале функции
+    global df
     
     user_id = str(update.message.from_user.id)
     
@@ -288,7 +288,7 @@ async def delete_last(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text("У вас нет сохраненных тренировок!")
         return
     
-    # Находим последнюю запись по дате и времени (индекс максимальный)
+    # Находим последнюю запись
     last_entry_index = user_entries.index[-1]
     
     # Удаляем запись
@@ -316,10 +316,10 @@ def main() -> None:
             SELECT_EXERCISE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, select_exercise)
             ],
-            INPUT_CUSTOM_EXERCISE: [  # Исправлено: было INPUT_CUSTOM_EXERCISE
+            INPUT_CUSTOM_EXERCISE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, input_custom_exercise)
             ],
-            INPUT_WEIGHT: [  # Исправлено: было INPUT_WEIGHT
+            INPUT_WEIGHT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, input_weight)
             ],
             INPUT_REPS: [
@@ -330,7 +330,6 @@ def main() -> None:
     )
 
     application.add_handler(conv_handler)
-    # Добавляем новый обработчик команды
     application.add_handler(CommandHandler("delete_last", delete_last))
     
     application.run_polling()
