@@ -149,7 +149,7 @@ def update_graph(selected_user, selected_muscle, selected_exercise):
         range_color=[1, 15],
         title=f"Прогресс в упражнении {selected_exercise}",
         hover_data=['reps'],
-        size=[12] * len(filtered_df)  # Размер точек
+        size=[24] * len(filtered_df)  # Размер точек
     )
     
     # Добавляем линии между точками
