@@ -75,7 +75,7 @@ app.layout = dbc.Container([
     # Скрытый компонент для автоматического обновления
     dcc.Interval(
         id='interval-component',
-        interval=120*1000,  # 10 секунд
+        interval=120*1000,  # 120 секунд
         n_intervals=0
     )
 ], fluid=True)
@@ -95,7 +95,7 @@ def update_data(n_clicks, n_intervals):
     last_update = f"Последнее обновление: {datetime.now(timezone).strftime('%H:%M:%S')}"
     return user_options, default_user, last_update
 
-# Остальные callback'и остаются без изменений
+# Callback для обновления dropdown мышечных групп
 @callback(
     Output('muscle-dropdown', 'options'),
     Output('muscle-dropdown', 'value'),
@@ -108,6 +108,7 @@ def update_muscle_dropdown(selected_user):
     default_value = muscle_options[0]['value'] if muscle_options else None
     return muscle_options, default_value
 
+# Callback для обновления dropdown упражнений
 @callback(
     Output('exercise-dropdown', 'options'),
     Output('exercise-dropdown', 'value'),
@@ -122,6 +123,7 @@ def update_exercise_dropdown(selected_user, selected_muscle):
     default_value = exercise_options[0]['value'] if exercise_options else None
     return exercise_options, default_value
 
+# Callback для обновления графика прогресса
 @callback(
     Output('progress-graph', 'figure'),
     Input('user-dropdown', 'value'),
@@ -137,24 +139,58 @@ def update_graph(selected_user, selected_muscle, selected_exercise):
     if filtered_df.empty:
         return px.scatter(title="Нет данных для выбранных параметров")
     
-    fig = px.line(
+    # Создаем график с цветовым градиентом по количеству повторений
+    fig = px.scatter(
         filtered_df, 
         x='date', 
         y='weight',
+        color='reps',
+        color_continuous_scale='Viridis',  # Градиентная палитра (можно заменить на 'Plasma', 'Inferno', 'Magma', 'Cividis')
+        range_color=[filtered_df['reps'].min(), filtered_df['reps'].max()],
         title=f"Прогресс в упражнении {selected_exercise}",
         hover_data=['reps'],
-        markers=True
+        size=[12] * len(filtered_df)  # Размер точек
     )
     
+    # Добавляем линии между точками
+    fig.add_scatter(
+        x=filtered_df['date'],
+        y=filtered_df['weight'],
+        mode='lines+markers',
+        line=dict(color='rgba(150, 150, 150, 0.5)', width=1),
+        marker=dict(size=0),  # Скрываем маркеры для этого следа
+        showlegend=False,
+        hoverinfo='skip'
+    )
+    
+    # Настраиваем отображение точек
     fig.update_traces(
-        hovertemplate="<b>Дата:</b> %{x}<br><b>Вес:</b> %{y} кг<br><b>Повторений:</b> %{customdata[0]}<extra></extra>"
+        hovertemplate="<b>Дата:</b> %{x}<br><b>Вес:</b> %{y} кг<br><b>Повторений:</b> %{customdata[0]}<extra></extra>",
+        marker=dict(
+            size=12,
+            line=dict(width=1, color='DarkSlateGrey'),
+            opacity=0.8
+        ),
+        selector=dict(mode='markers')
     )
     
+    # Настраиваем layout графика
     fig.update_layout(
         xaxis_title="Дата",
         yaxis_title="Вес (кг)",
-        hovermode="x unified"
+        hovermode="x unified",
+        coloraxis_colorbar=dict(
+            title="Повторений",
+            thickness=20,
+            len=0.5
+        ),
+        plot_bgcolor='rgba(240, 240, 240, 0.8)',
+        paper_bgcolor='rgba(240, 240, 240, 0.1)'
     )
+    
+    # Настраиваем оси
+    fig.update_xaxes(showgrid=True, gridwidth=0.5, gridcolor='rgba(200, 200, 200, 0.5)')
+    fig.update_yaxes(showgrid=True, gridwidth=0.5, gridcolor='rgba(200, 200, 200, 0.5)')
     
     return fig
 
