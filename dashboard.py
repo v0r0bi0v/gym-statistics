@@ -146,7 +146,7 @@ def update_graph(selected_user, selected_muscle, selected_exercise):
         y='weight',
         color='reps',
         color_continuous_scale='Reds',  # Градиентная палитра (можно заменить на 'Plasma', 'Inferno', 'Magma', 'Cividis')
-        range_color=[filtered_df['reps'].min(), filtered_df['reps'].max()],
+        range_color=[1, 15],
         title=f"Прогресс в упражнении {selected_exercise}",
         hover_data=['reps'],
         size=[12] * len(filtered_df)  # Размер точек
