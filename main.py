@@ -222,11 +222,38 @@ async def input_custom_exercise(update: Update, context: ContextTypes.DEFAULT_TY
     return INPUT_WEIGHT
 
 async def input_weight(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Обработка ввода веса."""
+    """Обработка ввода веса с отображением последнего подхода."""
     try:
         weight = float(update.message.text)
         context.user_data["weight"] = weight
-        await update.message.reply_text("Введите количество повторений:\nДля отмены нажмите /cancel")
+        
+        # Получаем информацию о пользователе и текущем упражнении
+        user_id = str(update.message.from_user.id)
+        user_name = user_names.get(user_id, "друг")
+        muscle_group = context.user_data.get("muscle_group", "")
+        exercise = context.user_data.get("exercise", "")
+        
+        # Ищем последний подход в этом упражнении
+        user_workouts = df[(df["user_id"] == user_name) & 
+                          (df["muscle_group"] == muscle_group) & 
+                          (df["exercise"] == exercise)]
+        
+        if not user_workouts.empty:
+            last_workout = user_workouts.iloc[-1]
+            message = (
+                f"Последний подход в этом упражнении:\n"
+                f"Дата: {last_workout['date']}\n"
+                f"Вес: {last_workout['weight']} кг\n"
+                f"Повторения: {last_workout['reps']}\n\n"
+                f"Введите количество повторений для нового подхода:"
+            )
+        else:
+            message = (
+                f"Вы впервые делаете это упражнение ({exercise})!\n\n"
+                f"Введите количество повторений:"
+            )
+        
+        await update.message.reply_text(message)
         return INPUT_REPS
     except ValueError:
         await update.message.reply_text("Пожалуйста, введите число (например: 12.5):")
