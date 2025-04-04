@@ -73,11 +73,11 @@ app.layout = dbc.Container([
     ]),
     
     # Скрытый компонент для автоматического обновления
-    dcc.Interval(
-        id='interval-component',
-        interval=120*1000,  # 120 секунд
-        n_intervals=0
-    )
+    # dcc.Interval(
+    #     id='interval-component',
+    #     interval=120*1000,  # 120 секунд
+    #     n_intervals=0
+    # )
 ], fluid=True)
 
 # Callback для обновления данных и dropdown пользователей
