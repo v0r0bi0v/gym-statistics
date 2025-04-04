@@ -72,7 +72,7 @@ app.layout = dbc.Container([
         ], width=12)
     ]),
     
-    # Скрытый компонент для автоматического обновления
+    # Скрытый компонент для автоматического обновления (закомментирован)
     # dcc.Interval(
     #     id='interval-component',
     #     interval=120*1000,  # 120 секунд
@@ -86,9 +86,9 @@ app.layout = dbc.Container([
     Output('user-dropdown', 'value'),
     Output('last-updated', 'children'),
     Input('refresh-button', 'n_clicks'),
-    Input('interval-component', 'n_intervals')
+    # Input('interval-component', 'n_intervals')  # Закомментировано
 )
-def update_data(n_clicks, n_intervals):
+def update_data(n_clicks, n_intervals=None):  # Убрал n_intervals из обязательных аргументов
     df = load_data()
     user_options = [{'label': user, 'value': user} for user in df['user_id'].unique()]
     default_user = user_options[0]['value'] if user_options else None
