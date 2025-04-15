@@ -6,6 +6,7 @@ import dash_bootstrap_components as dbc
 from datetime import datetime
 import os
 import pytz
+import ast
 
 timezone = pytz.timezone('Europe/Moscow')
 
@@ -16,7 +17,11 @@ def load_data():
     
     if 'last_modified_time' not in globals() or current_modified_time != last_modified_time:
         last_modified_time = current_modified_time
-        df = pd.read_csv("workouts.csv")
+        df = pd.read_csv("workouts.csv", sep=';')
+        # Преобразуем строки с повторениями в tuple
+        df['reps'] = df['reps'].apply(lambda x: ast.literal_eval(x) if pd.notnull(x) else ())
+        # Создаем колонку с максимальным количеством повторений
+        df['max_reps'] = df['reps'].apply(lambda x: max(x) if x else 0)
         df['date'] = pd.to_datetime(df['date'])
         print(f"Данные обновлены в {datetime.now(timezone).strftime('%H:%M:%S')}")
     
@@ -139,14 +144,18 @@ def update_graph(selected_user, selected_muscle, selected_exercise):
     if filtered_df.empty:
         return px.scatter(title="Нет данных для выбранных параметров")
     
-    # Создаем график с цветовым градиентом по количеству повторений
+    # Определяем диапазон для цветовой шкалы (от минимального до максимального количества повторений)
+    min_reps = filtered_df['max_reps'].min()
+    max_reps = filtered_df['max_reps'].max()
+    
+    # Создаем график с цветовым градиентом по максимальному количеству повторений
     fig = px.scatter(
         filtered_df, 
         x='date', 
         y='weight',
-        color='reps',
-        color_continuous_scale='Reds',  # Градиентная палитра (можно заменить на 'Plasma', 'Inferno', 'Magma', 'Cividis')
-        range_color=[1, 15],
+        color='max_reps',
+        color_continuous_scale='RdYlGn',  # Градиентная палитра (красный-желтый-зеленый)
+        range_color=[min_reps, max_reps],  # Динамический диапазон
         title=f"Прогресс в упражнении {selected_exercise}",
         hover_data=['reps'],
         size=[24] * len(filtered_df)  # Размер точек
@@ -180,7 +189,7 @@ def update_graph(selected_user, selected_muscle, selected_exercise):
         yaxis_title="Вес (кг)",
         hovermode="x unified",
         coloraxis_colorbar=dict(
-            title="Повторений",
+            title="Макс. повторений",
             thickness=20,
             len=0.5
         ),

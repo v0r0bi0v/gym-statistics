@@ -13,6 +13,7 @@ from telegram.ext import (
     ContextTypes
 )
 import pytz
+import ast
 
 timezone = pytz.timezone('Europe/Moscow')
 
@@ -33,7 +34,10 @@ except FileNotFoundError:
 
 # Инициализация DataFrame
 try:
-    df = pd.read_csv("workouts.csv")
+    df = pd.read_csv("workouts.csv", sep=';')
+    # Преобразование строки с повторениями в tuple
+    if 'reps' in df.columns:
+        df['reps'] = df['reps'].apply(lambda x: ast.literal_eval(x) if pd.notnull(x) else ())
 except FileNotFoundError:
     df = pd.DataFrame(columns=["user_id", "date", "muscle_group", "exercise", "weight", "reps"])
 
@@ -220,7 +224,7 @@ async def select_exercise(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             f"Последний подход в этом упражнении:\n"
             f"Дата: {last_workout['date']}\n"
             f"Вес: {last_workout['weight']} кг\n"
-            f"Повторения: {last_workout['reps']}\n\n"
+            f"Повторения: {', '.join(map(str, last_workout['reps']))}\n\n"
             f"Введите вес (кг) для нового подхода:\n"
             f"Для отмены нажмите /cancel"
         )
@@ -256,7 +260,7 @@ async def input_weight(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         weight = float(update.message.text)
         context.user_data["weight"] = weight
         await update.message.reply_text(
-            "Введите количество повторений:\n"
+            "Введите количество повторений за каждый подход через пробел (например: 12 10 8):\n"
             "Для отмены нажмите /cancel"
         )
         return INPUT_REPS
@@ -270,7 +274,13 @@ async def input_weight(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 async def input_reps(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Обработка ввода повторений и сохранение тренировки."""
     try:
-        reps = int(update.message.text)
+        reps_str = update.message.text.strip()
+        reps_list = [int(rep) for rep in reps_str.split()]
+        
+        if not reps_list:
+            await update.message.reply_text("Пожалуйста, введите хотя бы одно число повторений:")
+            return INPUT_REPS
+            
         user_data = context.user_data
         
         # Добавляем тренировку в DataFrame
@@ -281,20 +291,25 @@ async def input_reps(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             "muscle_group": user_data["muscle_group"],
             "exercise": user_data["exercise"],
             "weight": user_data["weight"],
-            "reps": reps
+            "reps": tuple(reps_list)
         }
+        
+        # Сохраняем с сепаратором ;
         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-        df.to_csv("workouts.csv", index=False)
+        df.to_csv("workouts.csv", sep=';', index=False)
         
         await update.message.reply_text(
             f"Тренировка сохранена, {user_names.get(str(update.message.from_user.id), 'друг')}! "
+            f"Подходы: {len(reps_list)}, повторения: {', '.join(map(str, reps_list))}\n"
             "Нажмите /start для новой записи."
             "\nНажмите /delete_last для удаления последнего подхода"
             "\nГрафики с прогрессом вы можете посмотреть на http://193.108.54.176:8080/"
         )
         return ConversationHandler.END
     except ValueError:
-        await update.message.reply_text("Пожалуйста, введите целое число (например: 10):")
+        await update.message.reply_text(
+            "Пожалуйста, введите целые числа через пробел (например: 12 10 8):"
+        )
         return INPUT_REPS
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -328,7 +343,7 @@ async def delete_last(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     
     # Удаляем запись
     df = df.drop(last_entry_index)
-    df.to_csv("workouts.csv", index=False)
+    df.to_csv("workouts.csv", sep=';', index=False)
     
     await update.message.reply_text("Последняя тренировка удалена!")
 
