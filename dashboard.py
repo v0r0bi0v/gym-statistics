@@ -17,13 +17,41 @@ def load_data():
     
     if 'last_modified_time' not in globals() or current_modified_time != last_modified_time:
         last_modified_time = current_modified_time
-        df = pd.read_csv("workouts.csv", sep=';')
-        # Преобразуем строки с повторениями в tuple
-        df['reps'] = df['reps'].apply(lambda x: ast.literal_eval(x) if pd.notnull(x) else ())
-        # Создаем колонку с максимальным количеством повторений
-        df['max_reps'] = df['reps'].apply(lambda x: max(x) if x else 0)
-        df['date'] = pd.to_datetime(df['date'])
-        print(f"Данные обновлены в {datetime.now(timezone).strftime('%H:%M:%S')}")
+        try:
+            # Читаем данные с явным указанием типа данных
+            df = pd.read_csv("workouts.csv", sep=';')
+            print("Первые 5 строк после загрузки:")
+            print(df.head())
+            
+            # Проверяем и преобразуем колонку reps
+            if 'reps' in df.columns:
+                # Преобразуем строки в tuple, если они не пустые
+                df['reps'] = df['reps'].apply(
+                    lambda x: ast.literal_eval(x) if pd.notnull(x) and isinstance(x, str) else tuple()
+                )
+                
+                # Создаем колонку max_reps только если reps содержит tuple
+                df['max_reps'] = df['reps'].apply(
+                    lambda x: max(x) if isinstance(x, tuple) and len(x) > 0 else 0
+                )
+            else:
+                df['reps'] = tuple()
+                df['max_reps'] = 0
+            
+            # Преобразуем дату
+            if 'date' in df.columns:
+                df['date'] = pd.to_datetime(df['date'])
+            else:
+                df['date'] = pd.to_datetime([])
+            
+            print("Данные после обработки:")
+            print(df.head())
+            print(f"Данные обновлены в {datetime.now(timezone).strftime('%H:%M:%S')}")
+            
+        except Exception as e:
+            print(f"Ошибка при загрузке данных: {e}")
+            # Создаем пустой DataFrame с нужными колонками
+            df = pd.DataFrame(columns=["user_id", "date", "muscle_group", "exercise", "weight", "reps", "max_reps"])
     
     return df
 
@@ -137,71 +165,99 @@ def update_exercise_dropdown(selected_user, selected_muscle):
 )
 def update_graph(selected_user, selected_muscle, selected_exercise):
     df = load_data()
-    filtered_df = df[(df['user_id'] == selected_user) & 
-                    (df['muscle_group'] == selected_muscle) & 
-                    (df['exercise'] == selected_exercise)]
+    print(f"Обновление графика для: {selected_user}, {selected_muscle}, {selected_exercise}")
+    
+    if selected_user is None or selected_muscle is None or selected_exercise is None:
+        return px.scatter(title="Выберите параметры для отображения графика")
+    
+    # Проверяем наличие необходимых колонок
+    required_cols = ['user_id', 'muscle_group', 'exercise', 'date', 'weight']
+    if not all(col in df.columns for col in required_cols):
+        print("Отсутствуют необходимые колонки в DataFrame")
+        return px.scatter(title="Ошибка: данные неполные")
+    
+    # Фильтруем данные
+    filtered_df = df[(df["user_id"] == selected_user) & 
+                    (df["muscle_group"] == selected_muscle) & 
+                    (df["exercise"] == selected_exercise)]
+    
+    print(f"Найдено записей: {len(filtered_df)}")
+    if not filtered_df.empty:
+        print(filtered_df[['date', 'weight', 'reps']].head())
     
     if filtered_df.empty:
         return px.scatter(title="Нет данных для выбранных параметров")
     
-    # Определяем диапазон для цветовой шкалы (от минимального до максимального количества повторений)
-    min_reps = filtered_df['max_reps'].min()
-    max_reps = filtered_df['max_reps'].max()
-    
-    # Создаем график с цветовым градиентом по максимальному количеству повторений
-    fig = px.scatter(
-        filtered_df, 
-        x='date', 
-        y='weight',
-        color='max_reps',
-        color_continuous_scale='RdYlGn',  # Градиентная палитра (красный-желтый-зеленый)
-        range_color=[min_reps, max_reps],  # Динамический диапазон
-        title=f"Прогресс в упражнении {selected_exercise}",
-        hover_data=['reps'],
-        size=[24] * len(filtered_df)  # Размер точек
-    )
-    
-    # Добавляем линии между точками
-    fig.add_scatter(
-        x=filtered_df['date'],
-        y=filtered_df['weight'],
-        mode='lines+markers',
-        line=dict(color='rgba(150, 150, 150, 0.5)', width=1),
-        marker=dict(size=0),  # Скрываем маркеры для этого следа
-        showlegend=False,
-        hoverinfo='skip'
-    )
-    
-    # Настраиваем отображение точек
-    fig.update_traces(
-        hovertemplate="<b>Дата:</b> %{x}<br><b>Вес:</b> %{y} кг<br><b>Повторений:</b> %{customdata[0]}<extra></extra>",
-        marker=dict(
-            size=12,
-            line=dict(width=1, color='DarkSlateGrey'),
-            opacity=0.8
-        ),
-        selector=dict(mode='markers')
-    )
-    
-    # Настраиваем layout графика
-    fig.update_layout(
-        xaxis_title="Дата",
-        yaxis_title="Вес (кг)",
-        hovermode="x unified",
-        coloraxis_colorbar=dict(
-            title="Макс. повторений",
-            thickness=20,
-            len=0.5
-        ),
-        plot_bgcolor='rgba(240, 240, 240, 0.8)',
-        paper_bgcolor='rgba(240, 240, 240, 0.1)'
-    )
-    
-    # Настраиваем оси
-    fig.update_xaxes(showgrid=True, gridwidth=0.5, gridcolor='rgba(200, 200, 200, 0.5)')
-    fig.update_yaxes(showgrid=True, gridwidth=0.5, gridcolor='rgba(200, 200, 200, 0.5)')
-    
-    return fig
+    try:
+        # Если есть колонка max_reps, используем ее, иначе создаем временную
+        if 'max_reps' not in filtered_df.columns:
+            filtered_df['max_reps'] = filtered_df['reps'].apply(
+                lambda x: max(x) if isinstance(x, tuple) and len(x) > 0 else 0
+            )
+        
+        # Определяем диапазон для цветовой шкалы
+        min_reps = filtered_df['max_reps'].min()
+        max_reps = filtered_df['max_reps'].max()
+        
+        # Если все значения одинаковые, немного расширяем диапазон
+        if min_reps == max_reps:
+            min_reps = max(0, min_reps - 1)
+            max_reps = max_reps + 1
+        
+        # Создаем график
+        fig = px.scatter(
+            filtered_df, 
+            x='date', 
+            y='weight',
+            color='max_reps',
+            color_continuous_scale='RdYlGn',
+            range_color=[min_reps, max_reps],
+            title=f"Прогресс в упражнении {selected_exercise}",
+            hover_data=['reps'],
+            size=[24] * len(filtered_df)
+        )
+        
+        # Добавляем линии между точками
+        fig.add_scatter(
+            x=filtered_df['date'],
+            y=filtered_df['weight'],
+            mode='lines+markers',
+            line=dict(color='rgba(150, 150, 150, 0.5)', width=1),
+            marker=dict(size=0),
+            showlegend=False,
+            hoverinfo='skip'
+        )
+        
+        # Настраиваем отображение
+        fig.update_traces(
+            hovertemplate="<b>Дата:</b> %{x}<br><b>Вес:</b> %{y} кг<br><b>Повторений:</b> %{customdata[0]}<extra></extra>",
+            marker=dict(
+                size=12,
+                line=dict(width=1, color='DarkSlateGrey'),
+                opacity=0.8
+            ),
+            selector=dict(mode='markers')
+        )
+        
+        # Настраиваем layout графика
+        fig.update_layout(
+            xaxis_title="Дата",
+            yaxis_title="Вес (кг)",
+            hovermode="x unified",
+            coloraxis_colorbar=dict(
+                title="Макс. повторений",
+                thickness=20,
+                len=0.5
+            ),
+            plot_bgcolor='rgba(240, 240, 240, 0.8)',
+            paper_bgcolor='rgba(240, 240, 240, 0.1)'
+        )
+        
+        return fig
+        
+    except Exception as e:
+        print(f"Ошибка при создании графика: {e}")
+        return px.scatter(title="Ошибка при отображении данных")
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=8080)
