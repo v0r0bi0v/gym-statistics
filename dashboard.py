@@ -52,6 +52,8 @@ def load_data():
             print(f"Ошибка при загрузке данных: {e}")
             # Создаем пустой DataFrame с нужными колонками
             df = pd.DataFrame(columns=["user_id", "date", "muscle_group", "exercise", "weight", "reps", "max_reps"])
+
+    df.sort_values("date", inplace=True)
     
     return df
 
